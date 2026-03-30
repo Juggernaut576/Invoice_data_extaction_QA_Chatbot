@@ -18,8 +18,8 @@ load_dotenv()
 # -----------------------------
 # Load API Keys
 # -----------------------------
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 
 # -----------------------------
 # Load LLM
@@ -112,7 +112,7 @@ Answer clearly and in human readable format.
 # -----------------------------
 st.set_page_config(page_title="PDF Chatbot")
 
-st.header("📄 Chat with PDFs (RAG System)")
+st.header("📄 Chat with PDFs")
 
 pdf_docs = st.file_uploader(
     "Upload PDFs",
