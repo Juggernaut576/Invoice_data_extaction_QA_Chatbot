@@ -35,8 +35,8 @@ GOOGLE_API_KEY = get_secret("GOOGLE_API_KEY")
 llm = None
 if GROQ_API_KEY:
     llm = ChatGroq(
-        groq_api_key=GROQ_API_KEY,
-        model_name="llama-3.3-70b-specdec"
+        api_key=GROQ_API_KEY,
+        model="llama-3.3-70b-specdec"
     )
 
 # -----------------------------
@@ -97,7 +97,10 @@ def ask_question(vectorstore, question):
     if llm is None:
         return "GROQ_API_KEY is missing. Add it to Streamlit secrets or export it as an environment variable."
 
-    docs = vectorstore.similarity_search(question)
+    try:
+        docs = vectorstore.similarity_search(question)
+    except Exception as exc:
+        return f"Vector search failed: {exc}"
 
     context = "\n\n".join([doc.page_content for doc in docs])
 
@@ -117,10 +120,13 @@ Answer clearly and in human readable format.
 
     chain = prompt | llm | StrOutputParser()
 
-    return chain.invoke({
-        "context": context,
-        "question": question
-    })
+    try:
+        return chain.invoke({
+            "context": context,
+            "question": question
+        })
+    except Exception as exc:
+        return f"Groq model request failed: {exc}"
 
 
 # -----------------------------
