@@ -11,23 +11,27 @@ from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-
 load_dotenv()
 
 
-def get_secret(key):
+def get_secret(key, default=""):
     try:
-        return st.secrets[key]
+        value = st.secrets[key]
     except Exception:
-        return os.getenv(key)
+        value = os.getenv(key, default)
+
+    if isinstance(value, str):
+        value = value.strip()
+        if value.startswith("${") and value.endswith("}"):
+            value = os.getenv(key, default)
+
+    return value or default
 
 
 # -----------------------------
 # Load API Keys
 # -----------------------------
 GROQ_API_KEY = get_secret("GROQ_API_KEY")
-GOOGLE_API_KEY = get_secret("GOOGLE_API_KEY")
 
 # -----------------------------
 # Load LLM
@@ -36,7 +40,7 @@ llm = None
 if GROQ_API_KEY:
     llm = ChatGroq(
         api_key=GROQ_API_KEY,
-        model="llama-3.3-70b-versatile"
+        model="openai/gpt-oss-120b"
     )
 
 # -----------------------------
@@ -73,20 +77,27 @@ def get_text_chunks(text):
 # -----------------------------
 def create_vector_store(text_chunks):
 
-    if not GOOGLE_API_KEY:
-        raise ValueError("GOOGLE_API_KEY is missing. Add it in Streamlit secrets or environment variables.")
+    try:
+        from langchain_huggingface import HuggingFaceEmbeddings
+    except Exception as exc:
+        raise RuntimeError("Could not import langchain_huggingface. Install langchain-huggingface and sentence-transformers.") from exc
 
-    embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/gemini-embedding-001",
-        google_api_key=GOOGLE_API_KEY
-    )
+    try:
+        embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
+    except Exception as exc:
+        raise RuntimeError(f"HuggingFace embedding setup failed: {exc}") from exc
 
-    vectorstore = FAISS.from_texts(
-        text_chunks,
-        embedding=embeddings
-    )
+    try:
+        vectorstore = FAISS.from_texts(
+            text_chunks,
+            embedding=embeddings
+        )
 
-    return vectorstore
+        return vectorstore
+    except Exception as exc:
+        raise RuntimeError(f"Vector DB creation failed: {exc}") from exc
 
 
 # -----------------------------
@@ -152,23 +163,24 @@ if process:
 
     if not GROQ_API_KEY:
         st.warning("GROQ_API_KEY is missing. Add it to Streamlit secrets or export it as an environment variable.")
-    elif not GOOGLE_API_KEY:
-        st.warning("GOOGLE_API_KEY is missing. Add it to Streamlit secrets or export it as an environment variable.")
     elif not pdf_docs:
         st.warning("Please upload at least one PDF.")
     else:
 
-        with st.spinner("Reading PDFs..."):
-            raw_text = get_pdf_text(pdf_docs)
+        try:
+            with st.spinner("Reading PDFs..."):
+                raw_text = get_pdf_text(pdf_docs)
 
-        with st.spinner("Creating chunks..."):
-            text_chunks = get_text_chunks(raw_text)
+            with st.spinner("Creating chunks..."):
+                text_chunks = get_text_chunks(raw_text)
 
-        with st.spinner("Creating vector database..."):
-            vectorstore = create_vector_store(text_chunks)
-            st.session_state.vectorstore = vectorstore
+            with st.spinner("Creating vector database..."):
+                vectorstore = create_vector_store(text_chunks)
+                st.session_state.vectorstore = vectorstore
 
-        st.success("Documents processed successfully!")
+            st.success("Documents processed successfully!")
+        except Exception as exc:
+            st.error(f"Failed to build the vector store: {exc}")
 
 
 # -----------------------------

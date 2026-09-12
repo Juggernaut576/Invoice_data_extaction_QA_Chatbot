@@ -8,3 +8,7 @@ streamlit
 langchain_community
 python-dotenv
 pypdf
+langchain-openai
+langchain-huggingface
+sentence-transformers
+torchvision
