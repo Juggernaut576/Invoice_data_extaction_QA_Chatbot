@@ -15,19 +15,29 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 load_dotenv()
 
+
+def get_secret(key):
+    try:
+        return st.secrets[key]
+    except Exception:
+        return os.getenv(key)
+
+
 # -----------------------------
 # Load API Keys
 # -----------------------------
-GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
-GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+GROQ_API_KEY = get_secret("GROQ_API_KEY")
+GOOGLE_API_KEY = get_secret("GOOGLE_API_KEY")
 
 # -----------------------------
 # Load LLM
 # -----------------------------
-llm = ChatGroq(
-    groq_api_key=GROQ_API_KEY,
-    model_name="llama-3.3-70b-specdec"
-)
+llm = None
+if GROQ_API_KEY:
+    llm = ChatGroq(
+        groq_api_key=GROQ_API_KEY,
+        model_name="llama-3.3-70b-specdec"
+    )
 
 # -----------------------------
 # Extract text from PDFs
@@ -63,6 +73,9 @@ def get_text_chunks(text):
 # -----------------------------
 def create_vector_store(text_chunks):
 
+    if not GOOGLE_API_KEY:
+        raise ValueError("GOOGLE_API_KEY is missing. Add it in Streamlit secrets or environment variables.")
+
     embeddings = GoogleGenerativeAIEmbeddings(
         model="models/gemini-embedding-001",
         google_api_key=GOOGLE_API_KEY
@@ -80,6 +93,9 @@ def create_vector_store(text_chunks):
 # Ask question
 # -----------------------------
 def ask_question(vectorstore, question):
+
+    if llm is None:
+        return "GROQ_API_KEY is missing. Add it to Streamlit secrets or export it as an environment variable."
 
     docs = vectorstore.similarity_search(question)
 
@@ -128,7 +144,11 @@ process = st.button("Process Documents")
 # -----------------------------
 if process:
 
-    if not pdf_docs:
+    if not GROQ_API_KEY:
+        st.warning("GROQ_API_KEY is missing. Add it to Streamlit secrets or export it as an environment variable.")
+    elif not GOOGLE_API_KEY:
+        st.warning("GOOGLE_API_KEY is missing. Add it to Streamlit secrets or export it as an environment variable.")
+    elif not pdf_docs:
         st.warning("Please upload at least one PDF.")
     else:
 
@@ -150,9 +170,10 @@ if process:
 # -----------------------------
 if question:
 
-    if "vectorstore" not in st.session_state:
+    if not GROQ_API_KEY:
+        st.warning("GROQ_API_KEY is missing. Set it before asking a question.")
+    elif "vectorstore" not in st.session_state:
         st.warning("Please process PDFs first.")
-
     else:
 
         with st.spinner("Thinking..."):
