@@ -26,7 +26,7 @@ GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 # -----------------------------
 llm = ChatGroq(
     groq_api_key=GROQ_API_KEY,
-    model_name="llama-3.3-70b-versatile"
+    model_name="llama-3.3-70b-specdec"
 )
 
 # -----------------------------
