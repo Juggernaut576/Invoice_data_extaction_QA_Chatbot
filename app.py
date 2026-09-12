@@ -36,7 +36,7 @@ llm = None
 if GROQ_API_KEY:
     llm = ChatGroq(
         api_key=GROQ_API_KEY,
-        model="llama-3.3-70b-specdec"
+        model="llama-3.3-70b-versatile"
     )
 
 # -----------------------------
